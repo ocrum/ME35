@@ -154,6 +154,9 @@ class NetworkManager:
                     return Command.OTHER
 
     def update_network_status(self):
+        """
+        Updates the status of the network by controlling the indicator LED based on the internet and MQTT connection states.
+        """
         if not self.using_internet:
             self.indicator.off()
         elif not self.using_mqtt:
@@ -162,6 +165,9 @@ class NetworkManager:
             self.indicator.on()
 
     def publish_message(self, message):
+        """
+        Publishes a message to the MQTT broker on the subscribed topic.
+        """
         self.client.publish(self.topic_sub.encode(), message.encode())
 
 class BuzzerManager:
@@ -318,6 +324,9 @@ class LEDManager:
 
 class AccelerometerManager:
     def __init__(self, scl, sda, addr = 0x62):
+        """
+        Initializes the accelerometer with I2C communication and sets up parameters for shaking detection.
+        """
         self.addr = addr
         self.i2c = machine.I2C(1,scl=scl, sda=sda, freq=100000)
         self.connected = False
@@ -330,16 +339,25 @@ class AccelerometerManager:
             self.write_byte(0x11,0) #start data stream
 
     def is_connected(self):
+        """
+        Checks if the accelerometer is connected via I2C and returns the connection status.
+        """
         options = self.i2c.scan()
         print(options)
         self.connected = self.addr in options
         return self.connected
 
     def read_accel_mag(self):
+        """
+        Reads the acceleration vector from the accelerometer and returns its magnitude.
+        """
         vector = self.read_accel()
         return math.sqrt(vector[0] ** 2 + vector[1] ** 2 + vector[2] ** 2)
 
     def is_shaking(self):
+        """
+        Determines if the accelerometer is detecting shaking based on a predefined magnitude threshold.
+        """
         return self.read_accel_mag() > 20000 # Value obtained from testing
 
     def is_shooketh(self):
@@ -358,12 +376,17 @@ class AccelerometerManager:
         return False
 
     def read_accel(self):
+        """
+        Reads the raw acceleration data from the accelerometer and returns it as a vector.
+        """
         buffer = self.i2c.readfrom_mem(self.addr, 0x02, 6) # read 6 bytes starting at memory address 2
         return struct.unpack('<hhh',buffer)
 
     def write_byte(self, cmd, value):
+        """
+        Writes a byte to a specific register on the accelerometer via I2C.
+        """
         self.i2c.writeto_mem(self.addr, cmd, value.to_bytes(1,'little'))
-
 
 class MainManager:
     """
@@ -401,6 +424,9 @@ class MainManager:
         self.run_async()
 
     def run_async(self):
+        """
+        Starts the asynchronous event loop to manage the system’s main tasks (callbacks, shaking detection, etc.).
+        """
         thread = asyncio.get_event_loop()
         thread.create_task(self.check_callback())
         thread.create_task(self.shaking_loop())
@@ -409,6 +435,9 @@ class MainManager:
         thread.run_forever()
 
     async def button(self):
+        """
+        Monitors the button state and toggles the LED mode when pressed, also publishes a message via MQTT.
+        """
         while True:
             await asyncio.sleep(0.1)
             if self.running:
@@ -417,6 +446,16 @@ class MainManager:
                     self.network_manager.publish_message('something')
 
     async def check_callback(self):
+        """
+        Continuously checks for incoming MQTT messages using the network manager's callback.
+        Based on the received command:
+        - STOP: Stops the system.
+        - START: Starts the system.
+        - PAIR_ON: Enables pairing mode.
+        - PAIR_OFF: Disables pairing mode.
+        - BUZZ: Activates the buzzer.
+        Runs in an infinite loop with a 0.1-second delay between checks.
+        """
         while True:
             await asyncio.sleep(0.1)
             callback = self.network_manager.check_callback()
@@ -432,10 +471,16 @@ class MainManager:
                 self.buzz()
 
     def buzz(self):
+        """
+        Activates the buzzer to start buzzing.
+        """
         self.buzzer_manager.start_buzzing()
 
 
     async def shaking_loop(self):
+        """
+        Continuously checks for shaking and changes the NeoPixel color while buzzing when shaking is detected.
+        """
         while True:
             await asyncio.sleep(0.01)
             if self.running:
@@ -445,6 +490,9 @@ class MainManager:
                     self.buzzer_manager.start_buzzing()
 
     async def update_beacon(self):
+        """
+        Updates the brightness of the beacon LED based on accelerometer readings, adjusting brightness according to movement.
+        """
         prev_accel_val = self.accelerometer_manager.read_accel_mag()
         while True:
             await asyncio.sleep(0.01)
