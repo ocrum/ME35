@@ -7,6 +7,15 @@ from machine import Pin, PWM
 
 class ZombieGame():
     def __init__(self):
+        """
+        Initializes the game state, BLE communication, buzzer, and NeoPixel:
+        - player_type: 'H' (Human) or 'Z' (Zombie), starts as 'H'.
+        - infection_string: ID for infection, starts as '7'.
+        - rssi_thresh: RSSI proximity threshold (-60).
+        - hit_array, start_times, in_ranges: Track hits, start times, and proximity for 13 teams.
+        - c: BLE scanner (Sniff), p: BLE advertiser (Yell).
+        - buzzer: PWM control on GPIO18, np: NeoPixel on GPIO28 (initially green).
+        """
         self.player_type = 'H'  # Initialize as Human ('H') or Zombie ('Z')
         self.infection_string = '7'
         self.running = True
